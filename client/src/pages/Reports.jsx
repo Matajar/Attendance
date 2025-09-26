@@ -18,7 +18,7 @@ export const Reports = () => {
   const [error, setError] = useState(null);
   const [reportParams, setReportParams] = useState({
     employee_id: 'all',
-    department_id: 'all',
+    department: 'all',
     year: new Date().getFullYear().toString(),
     month: (new Date().getMonth() + 1).toString().padStart(2, '0'),
     report_type: 'monthly'
@@ -44,17 +44,17 @@ export const Reports = () => {
       setEmployees(employeesRes.data.data || []);
       setDepartments(departmentsRes.data.data || []);
     } catch (err) {
-      setError('Failed to fetch data');
+      setError(err.message || 'Failed to fetch data');
       toast({
         title: 'Error',
-        description: 'Failed to fetch data',
+        description: err.message || 'Failed to fetch data',
         variant: 'destructive',
       });
     }
   };
 
   const generateReport = async () => {
-    if (!reportParams.employee_id && !reportParams.department_id) {
+    if (!reportParams.employee_id && !reportParams.department) {
       toast({
         title: 'Error',
         description: 'Please select either an employee or department',
@@ -67,33 +67,42 @@ export const Reports = () => {
       setLoading(true);
       setError(null);
 
-      if (reportParams.employee_id) {
+      if (reportParams.employee_id && reportParams.employee_id !== 'all') {
         // Generate individual employee report
         const response = await attendanceAPI.getReport(
           reportParams.employee_id,
           reportParams.year,
           reportParams.month
         );
-        setReportData([response.data]);
-        calculateSummary([response.data]);
-      } else {
+        const reportData = response.data.data;
+        setReportData([reportData]);
+        calculateSummary([reportData]);
+      } else if (reportParams.department !== 'all') {
         // Generate department report - fetch all employees in department
         const deptEmployees = employees.filter(
-          emp => emp.department_id.toString() === reportParams.department_id
+          emp => (emp.department?._id || emp.department || '').toString() === reportParams.department
         );
 
         const reportPromises = deptEmployees.map(employee =>
-          attendanceAPI.getReport(employee.id, reportParams.year, reportParams.month)
+          attendanceAPI.getReport(
+            employee._id || employee.id,
+            reportParams.year,
+            reportParams.month
+          )
             .then(response => ({
-              ...response.data,
+              ...response.data.data,
               employee_name: employee.name,
-              employee_id: employee.id
+              employee_id: employee._id || employee.id
             }))
-            .catch(() => ({
+            .catch(err => ({
               employee_name: employee.name,
-              employee_id: employee.id,
-              records: [],
-              summary: { total_days: 0, present_days: 0, absent_days: 0, avg_working_hours: 0 }
+              employee_id: employee._id || employee.id,
+              details: [],
+              totalDays: 0,
+              presentDays: 0,
+              absentDays: 0,
+              halfDays: 0,
+              totalHoursWorked: 0
             }))
         );
 
@@ -254,7 +263,7 @@ export const Reports = () => {
                 onValueChange={(value) => setReportParams({
                   ...reportParams,
                   employee_id: value,
-                  department_id: value ? '' : reportParams.department_id
+                  department: value ? '' : reportParams.department
                 })}
               >
                 <SelectTrigger>
@@ -274,10 +283,10 @@ export const Reports = () => {
             <div>
               <Label htmlFor="department">Department</Label>
               <Select
-                value={reportParams.department_id}
+                value={reportParams.department}
                 onValueChange={(value) => setReportParams({
                   ...reportParams,
-                  department_id: value,
+                  department: value,
                   employee_id: value ? '' : reportParams.employee_id
                 })}
               >

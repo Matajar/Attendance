@@ -39,13 +39,13 @@ export const MarkAttendance = () => {
     try {
       setLoading(true);
       const response = await employeeAPI.getAll();
-      setEmployees((response.data.data || []).filter(emp => emp.status === 'active'));
+      setEmployees(response.data.data || []);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch employees');
+      setError(err.message || 'Failed to fetch employees');
       toast({
         title: 'Error',
-        description: 'Failed to fetch employees',
+        description: err.message || 'Failed to fetch employees',
         variant: 'destructive',
       });
     } finally {
@@ -59,8 +59,9 @@ export const MarkAttendance = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       const response = await attendanceAPI.getByDate(today);
-      const employeeAttendance = response.data.find(
-        record => record.employee_id.toString() === selectedEmployee
+      const attendanceData = response.data.data || [];
+      const employeeAttendance = attendanceData.find(
+        record => (record.employee?._id || record.employee?.id || record.employee || '').toString() === selectedEmployee
       );
       setTodayAttendance(employeeAttendance || null);
     } catch (err) {
@@ -83,17 +84,19 @@ export const MarkAttendance = () => {
       const currentTime = new Date();
       const timeString = currentTime.toTimeString().slice(0, 8); // HH:mm:ss format
 
+      // Use correct field names for backend
       const data = {
-        employee_id: parseInt(selectedEmployee),
+        employeeId: selectedEmployee, // Backend expects employeeId, not employee_id
         date: new Date().toISOString().split('T')[0],
-        [type === 'check_in' ? 'check_in' : 'check_out']: timeString
+        status: type === 'check_in' ? 'Present' : 'Present', // Always mark as present when checking in/out
+        [type === 'check_in' ? 'checkInTime' : 'checkOutTime']: timeString
       };
 
-      await attendanceAPI.mark(data);
+      const response = await attendanceAPI.mark(data);
 
       toast({
         title: 'Success',
-        description: `${type === 'check_in' ? 'Check-in' : 'Check-out'} recorded successfully`,
+        description: response.data.message || `${type === 'check_in' ? 'Check-in' : 'Check-out'} recorded successfully`,
       });
 
       // Refresh today's attendance
@@ -101,7 +104,7 @@ export const MarkAttendance = () => {
     } catch (err) {
       toast({
         title: 'Error',
-        description: `Failed to record ${type === 'check_in' ? 'check-in' : 'check-out'}`,
+        description: err.message || `Failed to record ${type === 'check_in' ? 'check-in' : 'check-out'}`,
         variant: 'destructive',
       });
     } finally {
@@ -126,8 +129,8 @@ export const MarkAttendance = () => {
 
   const getAttendanceStatus = () => {
     if (!todayAttendance) return 'Not marked';
-    if (todayAttendance.check_in && todayAttendance.check_out) return 'Completed';
-    if (todayAttendance.check_in && !todayAttendance.check_out) return 'Checked in';
+    if (todayAttendance.checkInTime && todayAttendance.checkOutTime) return 'Completed';
+    if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) return 'Checked in';
     return 'Not marked';
   };
 
@@ -147,8 +150,8 @@ export const MarkAttendance = () => {
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const canCheckIn = !todayAttendance?.check_in;
-  const canCheckOut = todayAttendance?.check_in && !todayAttendance?.check_out;
+  const canCheckIn = !todayAttendance?.checkInTime;
+  const canCheckOut = todayAttendance?.checkInTime && !todayAttendance?.checkOutTime;
 
   return (
     <div className="space-y-6">

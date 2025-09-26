@@ -9,6 +9,34 @@ const api = axios.create({
   },
 });
 
+// Response interceptor to handle the status field in responses
+api.interceptors.response.use(
+  (response) => {
+    // Check if response has status field set to false
+    if (response.data && response.data.status === false) {
+      // Transform it into an error
+      const error = new Error(response.data.message || 'Request failed');
+      error.response = response;
+      error.data = response.data;
+      return Promise.reject(error);
+    }
+    return response;
+  },
+  (error) => {
+    // Handle network errors or server errors
+    if (error.response) {
+      // Server responded with error status
+      if (error.response.data && error.response.data.message) {
+        error.message = error.response.data.message;
+      }
+    } else if (error.request) {
+      // Request was made but no response
+      error.message = 'Network error. Please check your connection.';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Department API
 export const departmentAPI = {
   getAll: () => api.get('/departments'),

@@ -19,7 +19,7 @@ export const Attendance = () => {
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split('T')[0],
     employee_id: 'all',
-    department_id: 'all',
+    department: 'all',
     status: 'all'
   });
 
@@ -47,10 +47,10 @@ export const Attendance = () => {
       await fetchAttendanceByDate();
       setError(null);
     } catch (err) {
-      setError('Failed to fetch data');
+      setError(err.message || 'Failed to fetch data');
       toast({
         title: 'Error',
-        description: 'Failed to fetch attendance data',
+        description: err.message || 'Failed to fetch attendance data',
         variant: 'destructive',
       });
     } finally {
@@ -65,7 +65,7 @@ export const Attendance = () => {
     } catch (err) {
       toast({
         title: 'Error',
-        description: 'Failed to fetch attendance records',
+        description: err.message || 'Failed to fetch attendance records',
         variant: 'destructive',
       });
     }
@@ -79,7 +79,7 @@ export const Attendance = () => {
   const getDepartmentName = (employeeId) => {
     const employee = employees.find(e => (e._id || e.id) === employeeId);
     if (!employee) return 'Unknown Department';
-    const deptId = employee.department?._id || employee.department_id || employee.department;
+    const deptId = employee.department?._id || employee.department || employee.department;
     const department = departments.find(d => (d._id || d.id) === deptId);
     return department ? department.name : 'Unknown Department';
   };
@@ -129,9 +129,9 @@ console.log(attendanceRecords);
     if (filters.employee_id && filters.employee_id !== 'all' && (record.employee_id || record.employee?._id || '').toString() !== filters.employee_id) {
       return false;
     }
-    if (filters.department_id && filters.department_id !== 'all') {
+    if (filters.department && filters.department !== 'all') {
       const employee = employees.find(e => e.id === record.employee_id);
-      if (!employee || (employee.department_id || employee.department?._id || '').toString() !== filters.department_id) {
+      if (!employee || (employee.department || employee.department?._id || '').toString() !== filters.department) {
         return false;
       }
     }
@@ -287,8 +287,8 @@ console.log(attendanceRecords);
             <div>
               <Label htmlFor="department">Department</Label>
               <Select
-                value={filters.department_id}
-                onValueChange={(value) => setFilters({ ...filters, department_id: value })}
+                value={filters.department}
+                onValueChange={(value) => setFilters({ ...filters, department: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All departments" />

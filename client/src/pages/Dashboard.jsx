@@ -58,8 +58,13 @@ export const Dashboard = () => {
 
       const createdDepts = [];
       for (const dept of departments) {
-        const res = await departmentAPI.create(dept);
-        createdDepts.push(res.data.data);
+        try {
+          const res = await departmentAPI.create(dept);
+          createdDepts.push(res.data.data);
+        } catch (err) {
+          // Skip if already exists
+          console.log(`Department ${dept.name} might already exist`);
+        }
       }
 
       // Create designations
@@ -76,8 +81,13 @@ export const Dashboard = () => {
 
       const createdDesigs = [];
       for (const desig of designations) {
-        const res = await designationAPI.create(desig);
-        createdDesigs.push(res.data.data);
+        try {
+          const res = await designationAPI.create(desig);
+          createdDesigs.push(res.data.data);
+        } catch (err) {
+          // Skip if already exists
+          console.log(`Designation ${desig.name} might already exist`);
+        }
       }
 
       // Create employees

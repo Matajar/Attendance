@@ -24,8 +24,10 @@ export const Employees = () => {
     name: '',
     email: '',
     phone: '',
-    department_id: '',
-    designation_id: '',
+    department: '',
+    designation: '',
+    salary: '',
+    joinDate: '',
     status: 'active'
   });
 
@@ -46,10 +48,10 @@ export const Employees = () => {
       setDesignations(designationsRes.data.data || []);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch data');
+      setError(err.message || 'Failed to fetch data');
       toast({
         title: 'Error',
-        description: 'Failed to fetch employees data',
+        description: err.message || 'Failed to fetch employees data',
         variant: 'destructive',
       });
     } finally {
@@ -60,28 +62,41 @@ export const Employees = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Prepare payload with correct field names and include salary
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        designation: formData.designation,
+        salary: formData.salary || 0,
+        joinDate: formData.joinDate || new Date().toISOString()
+      };
+
       if (editingEmployee) {
-        await employeeAPI.update(editingEmployee._id || editingEmployee.id, formData);
+        const response = await employeeAPI.update(editingEmployee._id || editingEmployee.id, payload);
         toast({
           title: 'Success',
-          description: 'Employee updated successfully',
+          description: response.data.message || 'Employee updated successfully',
         });
       } else {
-        await employeeAPI.create(formData);
+        const response = await employeeAPI.create(payload);
         toast({
           title: 'Success',
-          description: 'Employee created successfully',
+          description: response.data.message || 'Employee created successfully',
         });
       }
       setIsDialogOpen(false);
       resetForm();
       fetchData();
     } catch (err) {
+      // Error message will come from interceptor
       toast({
         title: 'Error',
-        description: `Failed to ${editingEmployee ? 'update' : 'create'} employee`,
+        description: err.message || `Failed to ${editingEmployee ? 'update' : 'create'} employee`,
         variant: 'destructive',
       });
+      // Don't close the dialog on error
     }
   };
 
@@ -91,8 +106,8 @@ export const Employees = () => {
       name: employee.name,
       email: employee.email,
       phone: employee.phone,
-      department_id: (employee.department_id || employee.department?._id || employee.department || '').toString(),
-      designation_id: (employee.designation_id || employee.designation?._id || employee.designation || '').toString(),
+      department: (employee.department || employee.department?._id || employee.department || '').toString(),
+      designation: (employee.designation || employee.designation?._id || employee.designation || '').toString(),
       status: employee.status
     });
     setIsDialogOpen(true);
@@ -122,8 +137,8 @@ export const Employees = () => {
       name: '',
       email: '',
       phone: '',
-      department_id: '',
-      designation_id: '',
+      department: '',
+      designation: '',
       status: 'active'
     });
     setEditingEmployee(null);
@@ -224,8 +239,8 @@ export const Employees = () => {
               <div>
                 <Label htmlFor="department">Department</Label>
                 <Select
-                  value={formData.department_id}
-                  onValueChange={(value) => setFormData({ ...formData, department_id: value })}
+                  value={formData.department}
+                  onValueChange={(value) => setFormData({ ...formData, department: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
@@ -242,8 +257,8 @@ export const Employees = () => {
               <div>
                 <Label htmlFor="designation">Designation</Label>
                 <Select
-                  value={formData.designation_id}
-                  onValueChange={(value) => setFormData({ ...formData, designation_id: value })}
+                  value={formData.designation}
+                  onValueChange={(value) => setFormData({ ...formData, designation: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select designation" />
@@ -320,8 +335,8 @@ export const Employees = () => {
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.phoneNumber || employee.phone}</TableCell>
-                      <TableCell>{getDepartmentName(employee.department?._id || employee.department_id || employee.department)}</TableCell>
-                      <TableCell>{getDesignationName(employee.designation?._id || employee.designation_id || employee.designation)}</TableCell>
+                      <TableCell>{getDepartmentName(employee.department?._id || employee.department || employee.department)}</TableCell>
+                      <TableCell>{getDesignationName(employee.designation?._id || employee.designation || employee.designation)}</TableCell>
                       <TableCell>
                         <Badge
                           variant={employee.status === 'active' ? 'default' : 'secondary'}

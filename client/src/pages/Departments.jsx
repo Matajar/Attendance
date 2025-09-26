@@ -33,10 +33,10 @@ export const Departments = () => {
       setDepartments(response.data.data || []);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch departments');
+      setError(err.message || 'Failed to fetch departments');
       toast({
         title: 'Error',
-        description: 'Failed to fetch departments',
+        description: err.message || 'Failed to fetch departments',
         variant: 'destructive',
       });
     } finally {
@@ -48,16 +48,16 @@ export const Departments = () => {
     e.preventDefault();
     try {
       if (editingDepartment) {
-        await departmentAPI.update(editingDepartment._id || editingDepartment.id, formData);
+        const response = await departmentAPI.update(editingDepartment._id || editingDepartment.id, formData);
         toast({
           title: 'Success',
-          description: 'Department updated successfully',
+          description: response.data.message || 'Department updated successfully',
         });
       } else {
-        await departmentAPI.create(formData);
+        const response = await departmentAPI.create(formData);
         toast({
           title: 'Success',
-          description: 'Department created successfully',
+          description: response.data.message || 'Department created successfully',
         });
       }
       setIsDialogOpen(false);
@@ -66,9 +66,10 @@ export const Departments = () => {
     } catch (err) {
       toast({
         title: 'Error',
-        description: `Failed to ${editingDepartment ? 'update' : 'create'} department`,
+        description: err.message || `Failed to ${editingDepartment ? 'update' : 'create'} department`,
         variant: 'destructive',
       });
+      // Don't close dialog on error
     }
   };
 
@@ -84,17 +85,16 @@ export const Departments = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this department?')) {
       try {
-        const deleteResult = await departmentAPI.delete(id);
-      if (!deleteResult.data.success) throw new Error('Failed to delete');
+        const response = await departmentAPI.delete(id);
         toast({
           title: 'Success',
-          description: 'Department deleted successfully',
+          description: response.data.message || 'Department deleted successfully',
         });
         fetchDepartments();
       } catch (err) {
         toast({
           title: 'Error',
-          description: 'Failed to delete department',
+          description: err.message || 'Failed to delete department',
           variant: 'destructive',
         });
       }

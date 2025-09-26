@@ -19,7 +19,8 @@ export const Designations = () => {
   const [editingDesignation, setEditingDesignation] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    level: 1
   });
 
   useEffect(() => {
@@ -33,10 +34,10 @@ export const Designations = () => {
       setDesignations(response.data.data || []);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch designations');
+      setError(err.message || 'Failed to fetch designations');
       toast({
         title: 'Error',
-        description: 'Failed to fetch designations',
+        description: err.message || 'Failed to fetch designations',
         variant: 'destructive',
       });
     } finally {
@@ -47,17 +48,23 @@ export const Designations = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Add level field with default value
+      const payload = {
+        ...formData,
+        level: formData.level || 1
+      };
+
       if (editingDesignation) {
-        await designationAPI.update(editingDesignation._id || editingDesignation.id, formData);
+        const response = await designationAPI.update(editingDesignation._id || editingDesignation.id, payload);
         toast({
           title: 'Success',
-          description: 'Designation updated successfully',
+          description: response.data.message || 'Designation updated successfully',
         });
       } else {
-        await designationAPI.create(formData);
+        const response = await designationAPI.create(payload);
         toast({
           title: 'Success',
-          description: 'Designation created successfully',
+          description: response.data.message || 'Designation created successfully',
         });
       }
       setIsDialogOpen(false);
@@ -66,9 +73,10 @@ export const Designations = () => {
     } catch (err) {
       toast({
         title: 'Error',
-        description: `Failed to ${editingDesignation ? 'update' : 'create'} designation`,
+        description: err.message || `Failed to ${editingDesignation ? 'update' : 'create'} designation`,
         variant: 'destructive',
       });
+      // Don't close dialog on error
     }
   };
 
@@ -76,7 +84,8 @@ export const Designations = () => {
     setEditingDesignation(designation);
     setFormData({
       name: designation.name,
-      description: designation.description || ''
+      description: designation.description || '',
+      level: designation.level || 1
     });
     setIsDialogOpen(true);
   };
@@ -84,16 +93,16 @@ export const Designations = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this designation?')) {
       try {
-        await designationAPI.delete(id);
+        const response = await designationAPI.delete(id);
         toast({
           title: 'Success',
-          description: 'Designation deleted successfully',
+          description: response.data.message || 'Designation deleted successfully',
         });
         fetchDesignations();
       } catch (err) {
         toast({
           title: 'Error',
-          description: 'Failed to delete designation',
+          description: err.message || 'Failed to delete designation',
           variant: 'destructive',
         });
       }

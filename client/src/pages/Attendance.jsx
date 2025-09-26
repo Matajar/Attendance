@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { CalendarDays, Search, Filter, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
-const Attendance = () => {
+export const Attendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -18,9 +18,9 @@ const Attendance = () => {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split('T')[0],
-    employee_id: '',
-    department_id: '',
-    status: ''
+    employee_id: 'all',
+    department_id: 'all',
+    status: 'all'
   });
 
   useEffect(() => {
@@ -40,8 +40,8 @@ const Attendance = () => {
         employeeAPI.getAll(),
         departmentAPI.getAll()
       ]);
-      setEmployees(employeesRes.data);
-      setDepartments(departmentsRes.data);
+      setEmployees(employeesRes.data.data || []);
+      setDepartments(departmentsRes.data.data || []);
 
       // Fetch attendance for today by default
       await fetchAttendanceByDate();
@@ -61,7 +61,7 @@ const Attendance = () => {
   const fetchAttendanceByDate = async () => {
     try {
       const response = await attendanceAPI.getByDate(filters.date);
-      setAttendanceRecords(response.data);
+      setAttendanceRecords(response.data.data || []);
     } catch (err) {
       toast({
         title: 'Error',
@@ -72,14 +72,15 @@ const Attendance = () => {
   };
 
   const getEmployeeName = (employeeId) => {
-    const employee = employees.find(e => e.id === employeeId);
+    const employee = employees.find(e => (e._id || e.id) === employeeId);
     return employee ? employee.name : 'Unknown Employee';
   };
 
   const getDepartmentName = (employeeId) => {
-    const employee = employees.find(e => e.id === employeeId);
+    const employee = employees.find(e => (e._id || e.id) === employeeId);
     if (!employee) return 'Unknown Department';
-    const department = departments.find(d => d.id === employee.department_id);
+    const deptId = employee.department?._id || employee.department_id || employee.department;
+    const department = departments.find(d => (d._id || d.id) === deptId);
     return department ? department.name : 'Unknown Department';
   };
 
@@ -122,18 +123,19 @@ const Attendance = () => {
 
     return `${diffHours.toFixed(1)}h`;
   };
+console.log(attendanceRecords);
 
   const filteredRecords = attendanceRecords.filter(record => {
-    if (filters.employee_id && record.employee_id.toString() !== filters.employee_id) {
+    if (filters.employee_id && filters.employee_id !== 'all' && (record.employee_id || record.employee?._id || '').toString() !== filters.employee_id) {
       return false;
     }
-    if (filters.department_id) {
+    if (filters.department_id && filters.department_id !== 'all') {
       const employee = employees.find(e => e.id === record.employee_id);
-      if (!employee || employee.department_id.toString() !== filters.department_id) {
+      if (!employee || (employee.department_id || employee.department?._id || '').toString() !== filters.department_id) {
         return false;
       }
     }
-    if (filters.status) {
+    if (filters.status && filters.status !== 'all') {
       const hasCheckIn = !!record.check_in;
       const hasCheckOut = !!record.check_out;
       if (filters.status === 'present' && (!hasCheckIn || !hasCheckOut)) return false;
@@ -156,7 +158,7 @@ const Attendance = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="space-y-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -169,7 +171,7 @@ const Attendance = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="space-y-6">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
@@ -185,7 +187,7 @@ const Attendance = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -273,9 +275,9 @@ const Attendance = () => {
                   <SelectValue placeholder="All employees" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All employees</SelectItem>
+                  <SelectItem value="all">All employees</SelectItem>
                   {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id.toString()}>
+                    <SelectItem key={employee._id || employee.id} value={(employee._id || employee.id || '').toString()}>
                       {employee.name}
                     </SelectItem>
                   ))}
@@ -292,9 +294,9 @@ const Attendance = () => {
                   <SelectValue placeholder="All departments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All departments</SelectItem>
+                  <SelectItem value="all">All departments</SelectItem>
                   {departments.map((department) => (
-                    <SelectItem key={department.id} value={department.id.toString()}>
+                    <SelectItem key={department._id || department.id} value={(department._id || department.id || '').toString()}>
                       {department.name}
                     </SelectItem>
                   ))}
@@ -311,7 +313,7 @@ const Attendance = () => {
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="present">Present</SelectItem>
                   <SelectItem value="checked_in">Checked In</SelectItem>
                   <SelectItem value="absent">Absent</SelectItem>
@@ -352,11 +354,11 @@ const Attendance = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredRecords.map((record) => (
-                    <TableRow key={`${record.employee_id}-${record.date}`}>
+                    <TableRow key={`${record.employee?._id || record.employee_id || record.employee}-${record.date}`}>
                       <TableCell className="font-medium">
-                        {getEmployeeName(record.employee_id)}
+                        {getEmployeeName(record.employee?._id || record.employee_id || record.employee)}
                       </TableCell>
-                      <TableCell>{getDepartmentName(record.employee_id)}</TableCell>
+                      <TableCell>{getDepartmentName(record.employee?._id || record.employee_id || record.employee)}</TableCell>
                       <TableCell>
                         {new Date(record.date).toLocaleDateString('en-US', {
                           year: 'numeric',
@@ -385,4 +387,3 @@ const Attendance = () => {
   );
 };
 
-export default Attendance;

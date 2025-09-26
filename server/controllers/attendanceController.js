@@ -2,46 +2,94 @@ const Attendance = require('../models/Attendance');
 const Employee = require('../models/Employee');
 const moment = require('moment');
 
-exports.markAttendance = async (req, res) => {
+async function markAttendance(req, res) {
+  const { employeeId, date, checkInTime, checkOutTime, status, remarks } = req.body;
+
+  // Validation
+  if (!employeeId) {
+    return res
+      .status(200)
+      .json({ message: "Employee ID is required", status: false });
+  }
+
+  if (!date) {
+    return res
+      .status(200)
+      .json({ message: "Date is required", status: false });
+  }
+
+  if (!status || status.trim() === "") {
+    return res
+      .status(200)
+      .json({ message: "Attendance status is required", status: false });
+  }
+
+  // Validate status values
+  const validStatuses = ['Present', 'Absent', 'Half Day', 'Holiday', 'Leave'];
+  if (!validStatuses.includes(status)) {
+    return res
+      .status(200)
+      .json({ message: "Invalid attendance status", status: false });
+  }
+
   try {
-    const { employeeId, date, checkInTime, checkOutTime, status, remarks } = req.body;
+    // Check if employee exists
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res
+        .status(200)
+        .json({ message: "Employee not found", status: false });
+    }
 
     const existingAttendance = await Attendance.findOne({
       employee: employeeId,
       date: moment(date).startOf('day').toDate()
     });
 
-    let attendance;
+    let attendanceForm;
     if (existingAttendance) {
       existingAttendance.checkInTime = checkInTime;
       existingAttendance.checkOutTime = checkOutTime;
       existingAttendance.status = status;
-      existingAttendance.remarks = remarks;
+      existingAttendance.remarks = remarks || "";
       existingAttendance.calculateStatus();
-      attendance = await existingAttendance.save();
+      attendanceForm = await existingAttendance.save();
     } else {
-      attendance = new Attendance({
+      attendanceForm = new Attendance({
         employee: employeeId,
         date: moment(date).startOf('day').toDate(),
         checkInTime,
         checkOutTime,
         status,
-        remarks
+        remarks: remarks || ""
       });
-      attendance.calculateStatus();
-      await attendance.save();
+      attendanceForm.calculateStatus();
+      await attendanceForm.save();
     }
 
-    await attendance.populate('employee');
-    res.json({ success: true, data: attendance });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
+    await attendanceForm.populate('employee');
 
-exports.getAttendanceByDate = async (req, res) => {
+    res.status(200).json({
+      message: existingAttendance ? "Attendance updated successfully" : "Attendance marked successfully",
+      data: attendanceForm,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+}
+
+async function getAttendanceByDate(req, res) {
+  const { date } = req.params;
+
+  if (!date) {
+    return res
+      .status(200)
+      .json({ message: "Date is required", status: false });
+  }
+
   try {
-    const { date } = req.params;
     const startDate = moment(date).startOf('day').toDate();
     const endDate = moment(date).endOf('day').toDate();
 
@@ -52,18 +100,38 @@ exports.getAttendanceByDate = async (req, res) => {
       populate: { path: 'department designation' }
     });
 
-    res.json({ success: true, data: attendance });
+    res.status(200).json({
+      message: "Attendance retrieved successfully",
+      data: attendance,
+      status: true,
+    });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
   }
-};
+}
 
-exports.getEmployeeAttendance = async (req, res) => {
+async function getEmployeeAttendance(req, res) {
+  const { employeeId } = req.params;
+  const { startDate, endDate } = req.query;
+
+  if (!employeeId) {
+    return res
+      .status(200)
+      .json({ message: "Employee ID is required", status: false });
+  }
+
   try {
-    const { employeeId } = req.params;
-    const { startDate, endDate } = req.query;
+    // Check if employee exists
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res
+        .status(200)
+        .json({ message: "Employee not found", status: false });
+    }
 
     const filter = { employee: employeeId };
+
     if (startDate && endDate) {
       filter.date = {
         $gte: moment(startDate).startOf('day').toDate(),
@@ -72,15 +140,60 @@ exports.getEmployeeAttendance = async (req, res) => {
     }
 
     const attendance = await Attendance.find(filter).sort({ date: -1 });
-    res.json({ success: true, data: attendance });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
 
-exports.getMonthlyReport = async (req, res) => {
+    res.status(200).json({
+      message: "Employee attendance retrieved successfully",
+      data: attendance,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+}
+
+async function getMonthlyReport(req, res) {
+  const { employeeId, year, month } = req.params;
+
+  if (!employeeId) {
+    return res
+      .status(200)
+      .json({ message: "Employee ID is required", status: false });
+  }
+
+  if (!year || !month) {
+    return res
+      .status(200)
+      .json({ message: "Year and month are required", status: false });
+  }
+
+  // Validate year and month
+  const yearNum = parseInt(year);
+  const monthNum = parseInt(month);
+
+  if (isNaN(yearNum) || yearNum < 2000 || yearNum > 2100) {
+    return res
+      .status(200)
+      .json({ message: "Valid year is required (2000-2100)", status: false });
+  }
+
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+    return res
+      .status(200)
+      .json({ message: "Valid month is required (1-12)", status: false });
+  }
+
   try {
-    const { employeeId, year, month } = req.params;
+    // Check if employee exists
+    const employee = await Employee.findById(employeeId)
+      .populate(['department', 'designation']);
+
+    if (!employee) {
+      return res
+        .status(200)
+        .json({ message: "Employee not found", status: false });
+    }
+
     const startDate = moment(`${year}-${month}`, 'YYYY-MM').startOf('month').toDate();
     const endDate = moment(`${year}-${month}`, 'YYYY-MM').endOf('month').toDate();
 
@@ -90,7 +203,7 @@ exports.getMonthlyReport = async (req, res) => {
     });
 
     const report = {
-      employee: await Employee.findById(employeeId).populate(['department', 'designation']),
+      employee: employee,
       month: `${year}-${month}`,
       totalDays: moment(endDate).date(),
       presentDays: attendance.filter(a => a.status === 'Present').length,
@@ -102,13 +215,18 @@ exports.getMonthlyReport = async (req, res) => {
       details: attendance
     };
 
-    res.json({ success: true, data: report });
+    res.status(200).json({
+      message: "Monthly report retrieved successfully",
+      data: report,
+      status: true,
+    });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
   }
-};
+}
 
-exports.getDashboardStats = async (req, res) => {
+async function getDashboardStats(req, res) {
   try {
     const today = moment().startOf('day').toDate();
     const weekAgo = moment().subtract(7, 'days').startOf('day').toDate();
@@ -144,14 +262,25 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
 
-    res.json({
-      success: true,
+    res.status(200).json({
+      message: "Dashboard statistics retrieved successfully",
       data: {
         todayAbsentees,
         weeklyStats: dailyCounts
-      }
+      },
+      status: true,
     });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
   }
+}
+
+// Export functions
+module.exports = {
+  markAttendance,
+  getAttendanceByDate,
+  getEmployeeAttendance,
+  getMonthlyReport,
+  getDashboardStats
 };

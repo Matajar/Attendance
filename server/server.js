@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/database');
+const logger=require('morgan');
 
 const departmentRoutes = require('./routes/departmentRoutes');
 const designationRoutes = require('./routes/designationRoutes');
@@ -11,6 +12,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const app = express();
 
 connectDB();
+app.use(logger('dev'));
 
 app.use(cors());
 app.use(express.json());

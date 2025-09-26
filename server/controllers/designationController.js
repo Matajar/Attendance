@@ -1,60 +1,175 @@
 const Designation = require('../models/Designation');
 
-exports.createDesignation = async (req, res) => {
-  try {
-    const designation = new Designation(req.body);
-    await designation.save();
-    res.status(201).json({ success: true, data: designation });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
+async function createDesignation(req, res) {
+  const { name, description, level } = req.body;
 
-exports.getAllDesignations = async (req, res) => {
+  // Validation
+  if (!name || name.trim() === "") {
+    return res
+      .status(200)
+      .json({ message: "Designation name is required", status: false });
+  }
+
+  try {
+    // Check if designation with same name already exists
+    const checkDesignation = await Designation.findOne({ name: name });
+    if (checkDesignation) {
+      return res
+        .status(200)
+        .json({ message: "Designation already exists", status: false });
+    }
+
+    const designationForm = new Designation({
+      name,
+      description: description || "",
+      level: level || 1,
+    });
+
+    await designationForm.save();
+
+    res.status(200).json({
+      message: "Designation created successfully",
+      data: designationForm,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+}
+
+async function getAllDesignations(req, res) {
   try {
     const designations = await Designation.find();
-    res.json({ success: true, data: designations });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
 
-exports.getDesignationById = async (req, res) => {
+    res.status(200).json({
+      message: "Designations retrieved successfully",
+      data: designations,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+}
+
+async function getDesignationById(req, res) {
+  const { id } = req.params;
+
+  if (!id) {
+    return res
+      .status(200)
+      .json({ message: "Designation ID is required", status: false });
+  }
+
   try {
-    const designation = await Designation.findById(req.params.id);
+    const designation = await Designation.findById(id);
+
     if (!designation) {
-      return res.status(404).json({ success: false, error: 'Designation not found' });
+      return res
+        .status(200)
+        .json({ message: "Designation not found", status: false });
     }
-    res.json({ success: true, data: designation });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
 
-exports.updateDesignation = async (req, res) => {
+    res.status(200).json({
+      message: "Designation retrieved successfully",
+      data: designation,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+}
+
+async function updateDesignation(req, res) {
+  const { id } = req.params;
+  const { name, description, level } = req.body;
+
+  if (!id) {
+    return res
+      .status(200)
+      .json({ message: "Designation ID is required", status: false });
+  }
+
+  // Validate if at least one field is provided for update
+  if (!name && !description && level === undefined) {
+    return res
+      .status(200)
+      .json({ message: "At least one field is required for update", status: false });
+  }
+
   try {
+    // Check if designation exists
+    const existingDesignation = await Designation.findById(id);
+    if (!existingDesignation) {
+      return res
+        .status(200)
+        .json({ message: "Designation not found", status: false });
+    }
+
+    // Check if name is being updated and if it already exists
+    if (name && name !== existingDesignation.name) {
+      const checkName = await Designation.findOne({ name: name });
+      if (checkName) {
+        return res
+          .status(200)
+          .json({ message: "Designation with this name already exists", status: false });
+      }
+    }
+
     const designation = await Designation.findByIdAndUpdate(
-      req.params.id,
+      id,
       req.body,
       { new: true, runValidators: true }
     );
-    if (!designation) {
-      return res.status(404).json({ success: false, error: 'Designation not found' });
-    }
-    res.json({ success: true, data: designation });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
 
-exports.deleteDesignation = async (req, res) => {
-  try {
-    const designation = await Designation.findByIdAndDelete(req.params.id);
-    if (!designation) {
-      return res.status(404).json({ success: false, error: 'Designation not found' });
-    }
-    res.json({ success: true, message: 'Designation deleted successfully' });
+    res.status(200).json({
+      message: "Designation updated successfully",
+      data: designation,
+      status: true,
+    });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
   }
+}
+
+async function deleteDesignation(req, res) {
+  const { id } = req.params;
+
+  if (!id) {
+    return res
+      .status(200)
+      .json({ message: "Designation ID is required", status: false });
+  }
+
+  try {
+    const designation = await Designation.findById(id);
+    if (!designation) {
+      return res
+        .status(200)
+        .json({ message: "Designation not found", status: false });
+    }
+
+    await Designation.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Designation deleted successfully",
+      data: null,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error", status: false });
+  }
+}
+
+// Export functions
+module.exports = {
+  createDesignation,
+  getAllDesignations,
+  getDesignationById,
+  updateDesignation,
+  deleteDesignation
 };

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Clock, UserCheck, LogIn, LogOut, Calendar, Search } from 'lucide-react';
 
-const MarkAttendance = () => {
+export const MarkAttendance = () => {
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ const MarkAttendance = () => {
     try {
       setLoading(true);
       const response = await employeeAPI.getAll();
-      setEmployees(response.data.filter(emp => emp.status === 'active'));
+      setEmployees((response.data.data || []).filter(emp => emp.status === 'active'));
       setError(null);
     } catch (err) {
       setError('Failed to fetch employees');
@@ -120,7 +120,7 @@ const MarkAttendance = () => {
   };
 
   const getSelectedEmployeeInfo = () => {
-    const employee = employees.find(emp => emp.id.toString() === selectedEmployee);
+    const employee = employees.find(emp => (emp._id || emp.id || '').toString() === selectedEmployee);
     return employee;
   };
 
@@ -151,7 +151,7 @@ const MarkAttendance = () => {
   const canCheckOut = todayAttendance?.check_in && !todayAttendance?.check_out;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -223,7 +223,7 @@ const MarkAttendance = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {filteredEmployees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id.toString()}>
+                      <SelectItem key={employee._id || employee.id} value={(employee._id || employee.id || '').toString()}>
                         <div className="flex flex-col">
                           <span className="font-medium">{employee.name}</span>
                           <span className="text-sm text-gray-500">{employee.email}</span>
@@ -360,4 +360,3 @@ const MarkAttendance = () => {
   );
 };
 
-export default MarkAttendance;

@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from '@/hooks/use-toast';
 import { MoreHorizontal, Plus, Pencil, Trash2, Building } from 'lucide-react';
 
-const Departments = () => {
+export const Departments = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,7 +30,7 @@ const Departments = () => {
     try {
       setLoading(true);
       const response = await departmentAPI.getAll();
-      setDepartments(response.data);
+      setDepartments(response.data.data || []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch departments');
@@ -48,7 +48,7 @@ const Departments = () => {
     e.preventDefault();
     try {
       if (editingDepartment) {
-        await departmentAPI.update(editingDepartment.id, formData);
+        await departmentAPI.update(editingDepartment._id || editingDepartment.id, formData);
         toast({
           title: 'Success',
           description: 'Department updated successfully',
@@ -84,7 +84,8 @@ const Departments = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this department?')) {
       try {
-        await departmentAPI.delete(id);
+        const deleteResult = await departmentAPI.delete(id);
+      if (!deleteResult.data.success) throw new Error('Failed to delete');
         toast({
           title: 'Success',
           description: 'Department deleted successfully',
@@ -118,7 +119,7 @@ const Departments = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="space-y-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -131,7 +132,7 @@ const Departments = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="space-y-6">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
@@ -147,7 +148,7 @@ const Departments = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -230,7 +231,7 @@ const Departments = () => {
                 </TableHeader>
                 <TableBody>
                   {departments.map((department) => (
-                    <TableRow key={department.id}>
+                    <TableRow key={department._id || department.id}>
                       <TableCell className="font-medium">{department.name}</TableCell>
                       <TableCell>
                         {department.description ? (
@@ -255,7 +256,7 @@ const Departments = () => {
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDelete(department.id)}
+                              onClick={() => handleDelete(department._id || department.id)}
                               className="text-red-600"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -276,4 +277,3 @@ const Departments = () => {
   );
 };
 
-export default Departments;

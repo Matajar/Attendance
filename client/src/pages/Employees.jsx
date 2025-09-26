@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from '@/hooks/use-toast';
 import { MoreHorizontal, Plus, Pencil, Trash2, User } from 'lucide-react';
 
-const Employees = () => {
+export const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
@@ -41,9 +41,9 @@ const Employees = () => {
         departmentAPI.getAll(),
         designationAPI.getAll()
       ]);
-      setEmployees(employeesRes.data);
-      setDepartments(departmentsRes.data);
-      setDesignations(designationsRes.data);
+      setEmployees(employeesRes.data.data || []);
+      setDepartments(departmentsRes.data.data || []);
+      setDesignations(designationsRes.data.data || []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch data');
@@ -61,7 +61,7 @@ const Employees = () => {
     e.preventDefault();
     try {
       if (editingEmployee) {
-        await employeeAPI.update(editingEmployee.id, formData);
+        await employeeAPI.update(editingEmployee._id || editingEmployee.id, formData);
         toast({
           title: 'Success',
           description: 'Employee updated successfully',
@@ -91,8 +91,8 @@ const Employees = () => {
       name: employee.name,
       email: employee.email,
       phone: employee.phone,
-      department_id: employee.department_id.toString(),
-      designation_id: employee.designation_id.toString(),
+      department_id: (employee.department_id || employee.department?._id || employee.department || '').toString(),
+      designation_id: (employee.designation_id || employee.designation?._id || employee.designation || '').toString(),
       status: employee.status
     });
     setIsDialogOpen(true);
@@ -130,18 +130,18 @@ const Employees = () => {
   };
 
   const getDepartmentName = (departmentId) => {
-    const dept = departments.find(d => d.id === departmentId);
+    const dept = departments.find(d => (d._id || d.id) === departmentId);
     return dept ? dept.name : 'Unknown';
   };
 
   const getDesignationName = (designationId) => {
-    const desig = designations.find(d => d.id === designationId);
+    const desig = designations.find(d => (d._id || d.id) === designationId);
     return desig ? desig.name : 'Unknown';
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="space-y-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -154,7 +154,7 @@ const Employees = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="space-y-6">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
@@ -170,7 +170,7 @@ const Employees = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -232,7 +232,7 @@ const Employees = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                      <SelectItem key={dept._id || dept.id} value={(dept._id || dept.id || '').toString()}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -250,7 +250,7 @@ const Employees = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {designations.map((desig) => (
-                      <SelectItem key={desig.id} value={desig.id.toString()}>
+                      <SelectItem key={desig._id || desig.id} value={(desig._id || desig.id || '').toString()}>
                         {desig.name}
                       </SelectItem>
                     ))}
@@ -316,12 +316,12 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {employees.map((employee) => (
-                    <TableRow key={employee.id}>
+                    <TableRow key={employee._id || employee.id}>
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.phone}</TableCell>
-                      <TableCell>{getDepartmentName(employee.department_id)}</TableCell>
-                      <TableCell>{getDesignationName(employee.designation_id)}</TableCell>
+                      <TableCell>{employee.phoneNumber || employee.phone}</TableCell>
+                      <TableCell>{getDepartmentName(employee.department?._id || employee.department_id || employee.department)}</TableCell>
+                      <TableCell>{getDesignationName(employee.designation?._id || employee.designation_id || employee.designation)}</TableCell>
                       <TableCell>
                         <Badge
                           variant={employee.status === 'active' ? 'default' : 'secondary'}
@@ -342,7 +342,7 @@ const Employees = () => {
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDelete(employee.id)}
+                              onClick={() => handleDelete(employee._id || employee.id)}
                               className="text-red-600"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -363,4 +363,3 @@ const Employees = () => {
   );
 };
 
-export default Employees;

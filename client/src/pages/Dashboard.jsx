@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, Briefcase, UserCheck, UserX, Clock, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Building, Briefcase, UserCheck, UserX, Clock, TrendingUp, Database } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { attendanceAPI, employeeAPI, departmentAPI, designationAPI } from '@/services/api';
 import {
   Chart as ChartJS,
@@ -40,6 +42,101 @@ export const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const seedDatabase = async () => {
+    try {
+      setLoading(true);
+
+      // Create departments
+      const departments = [
+        { name: 'Engineering', description: 'Software development team' },
+        { name: 'Human Resources', description: 'HR and people operations' },
+        { name: 'Sales', description: 'Sales and business development' },
+        { name: 'Marketing', description: 'Marketing and communications' },
+        { name: 'Finance', description: 'Finance and accounting' }
+      ];
+
+      const createdDepts = [];
+      for (const dept of departments) {
+        const res = await departmentAPI.create(dept);
+        createdDepts.push(res.data.data);
+      }
+
+      // Create designations
+      const designations = [
+        { name: 'Junior Developer', description: 'Entry level developer' },
+        { name: 'Senior Developer', description: 'Experienced developer' },
+        { name: 'Team Lead', description: 'Team leadership role' },
+        { name: 'Manager', description: 'Department manager' },
+        { name: 'HR Executive', description: 'Human resources executive' },
+        { name: 'Sales Executive', description: 'Sales representative' },
+        { name: 'Marketing Specialist', description: 'Marketing professional' },
+        { name: 'Accountant', description: 'Finance and accounting professional' }
+      ];
+
+      const createdDesigs = [];
+      for (const desig of designations) {
+        const res = await designationAPI.create(desig);
+        createdDesigs.push(res.data.data);
+      }
+
+      // Create employees
+      const employees = [
+        { name: 'John Doe', email: 'john@company.com', phoneNumber: '1234567890', department: createdDepts[0]._id, designation: createdDesigs[1]._id },
+        { name: 'Jane Smith', email: 'jane@company.com', phoneNumber: '1234567891', department: createdDepts[0]._id, designation: createdDesigs[0]._id },
+        { name: 'Mike Johnson', email: 'mike@company.com', phoneNumber: '1234567892', department: createdDepts[0]._id, designation: createdDesigs[2]._id },
+        { name: 'Sarah Williams', email: 'sarah@company.com', phoneNumber: '1234567893', department: createdDepts[1]._id, designation: createdDesigs[4]._id },
+        { name: 'Tom Brown', email: 'tom@company.com', phoneNumber: '1234567894', department: createdDepts[2]._id, designation: createdDesigs[5]._id },
+        { name: 'Lisa Davis', email: 'lisa@company.com', phoneNumber: '1234567895', department: createdDepts[3]._id, designation: createdDesigs[6]._id },
+        { name: 'Chris Wilson', email: 'chris@company.com', phoneNumber: '1234567896', department: createdDepts[4]._id, designation: createdDesigs[7]._id },
+        { name: 'Amy Taylor', email: 'amy@company.com', phoneNumber: '1234567897', department: createdDepts[0]._id, designation: createdDesigs[0]._id },
+        { name: 'David Martinez', email: 'david@company.com', phoneNumber: '1234567898', department: createdDepts[2]._id, designation: createdDesigs[3]._id },
+        { name: 'Emily Anderson', email: 'emily@company.com', phoneNumber: '1234567899', department: createdDepts[1]._id, designation: createdDesigs[3]._id }
+      ];
+
+      const createdEmps = [];
+      for (const emp of employees) {
+        const res = await employeeAPI.create(emp);
+        createdEmps.push(res.data.data);
+      }
+
+      // Create some attendance records for today
+      const today = new Date().toISOString().split('T')[0];
+      const attendanceRecords = [
+        { employee: createdEmps[0]._id, date: today, checkInTime: new Date().setHours(9, 0, 0, 0), checkOutTime: new Date().setHours(18, 0, 0, 0), status: 'Present' },
+        { employee: createdEmps[1]._id, date: today, checkInTime: new Date().setHours(9, 15, 0, 0), checkOutTime: new Date().setHours(18, 30, 0, 0), status: 'Present', isLate: true, lateMinutes: 15 },
+        { employee: createdEmps[2]._id, date: today, checkInTime: new Date().setHours(8, 45, 0, 0), checkOutTime: new Date().setHours(17, 45, 0, 0), status: 'Present' },
+        { employee: createdEmps[3]._id, date: today, checkInTime: new Date().setHours(9, 30, 0, 0), status: 'Present', isLate: true, lateMinutes: 30 },
+        { employee: createdEmps[4]._id, date: today, status: 'Absent' },
+        { employee: createdEmps[5]._id, date: today, checkInTime: new Date().setHours(9, 0, 0, 0), checkOutTime: new Date().setHours(18, 15, 0, 0), status: 'Present' },
+        { employee: createdEmps[6]._id, date: today, checkInTime: new Date().setHours(10, 0, 0, 0), status: 'Present', isLate: true, lateMinutes: 60 },
+        { employee: createdEmps[7]._id, date: today, checkInTime: new Date().setHours(8, 30, 0, 0), checkOutTime: new Date().setHours(17, 30, 0, 0), status: 'Present' },
+        { employee: createdEmps[8]._id, date: today, status: 'Leave' },
+        { employee: createdEmps[9]._id, date: today, checkInTime: new Date().setHours(9, 0, 0, 0), checkOutTime: new Date().setHours(13, 0, 0, 0), status: 'Half Day' }
+      ];
+
+      for (const record of attendanceRecords) {
+        await attendanceAPI.mark(record);
+      }
+
+      toast({
+        title: 'Success',
+        description: `Created ${departments.length} departments, ${designations.length} designations, ${employees.length} employees, and ${attendanceRecords.length} attendance records`,
+      });
+
+      // Refresh dashboard data
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to seed database:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to seed database. Some data may already exist.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -146,9 +243,19 @@ export const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <TrendingUp className="h-4 w-4" />
-          <span>Attendance Rate: {stats.attendancePercentage}%</span>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={seedDatabase}
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            Seed Demo Data
+          </Button>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <TrendingUp className="h-4 w-4" />
+            <span>Attendance Rate: {stats.attendancePercentage}%</span>
+          </div>
         </div>
       </div>
 

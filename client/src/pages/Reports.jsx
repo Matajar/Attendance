@@ -10,15 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { BarChart3, Download, Calendar, FileText, TrendingUp, Clock } from 'lucide-react';
 
-const Reports = () => {
+export const Reports = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [reportData, setReportData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [reportParams, setReportParams] = useState({
-    employee_id: '',
-    department_id: '',
+    employee_id: 'all',
+    department_id: 'all',
     year: new Date().getFullYear().toString(),
     month: (new Date().getMonth() + 1).toString().padStart(2, '0'),
     report_type: 'monthly'
@@ -41,8 +41,8 @@ const Reports = () => {
         employeeAPI.getAll(),
         departmentAPI.getAll()
       ]);
-      setEmployees(employeesRes.data);
-      setDepartments(departmentsRes.data);
+      setEmployees(employeesRes.data.data || []);
+      setDepartments(departmentsRes.data.data || []);
     } catch (err) {
       setError('Failed to fetch data');
       toast({
@@ -226,7 +226,7 @@ const Reports = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -261,9 +261,9 @@ const Reports = () => {
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All employees</SelectItem>
+                  <SelectItem value="all">All employees</SelectItem>
                   {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id.toString()}>
+                    <SelectItem key={employee._id || employee.id} value={(employee._id || employee.id || '').toString()}>
                       {employee.name}
                     </SelectItem>
                   ))}
@@ -285,9 +285,9 @@ const Reports = () => {
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Select department</SelectItem>
+                  <SelectItem value="all">All departments</SelectItem>
                   {departments.map((department) => (
-                    <SelectItem key={department.id} value={department.id.toString()}>
+                    <SelectItem key={department._id || department.id} value={(department._id || department.id || '').toString()}>
                       {department.name}
                     </SelectItem>
                   ))}
@@ -500,4 +500,3 @@ const Reports = () => {
   );
 };
 
-export default Reports;

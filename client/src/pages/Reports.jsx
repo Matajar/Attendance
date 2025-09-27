@@ -54,18 +54,14 @@ export const Reports = () => {
   };
 
   const generateReport = async () => {
-    if (!reportParams.employee_id && !reportParams.department) {
-      toast({
-        title: 'Error',
-        description: 'Please select either an employee or department',
-        variant: 'destructive',
-      });
-      return;
-    }
+    console.log('Generating report with params:', reportParams);
+    console.log('Employees available:', employees);
+    console.log('Departments available:', departments);
 
     try {
       setLoading(true);
       setError(null);
+      setReportData([]); // Clear previous data
 
       if (reportParams.employee_id && reportParams.employee_id !== 'all') {
         // Generate individual employee report
@@ -75,6 +71,7 @@ export const Reports = () => {
           reportParams.month
         );
         const reportData = response.data.data;
+        console.log('Individual report data:', reportData);
         setReportData([reportData]);
         calculateSummary([reportData]);
       } else if (reportParams.department !== 'all') {
@@ -89,34 +86,91 @@ export const Reports = () => {
             reportParams.year,
             reportParams.month
           )
-            .then(response => ({
-              ...response.data.data,
-              employee_name: employee.name,
-              employee_id: employee._id || employee.id
-            }))
-            .catch(err => ({
-              employee_name: employee.name,
-              employee_id: employee._id || employee.id,
-              details: [],
-              totalDays: 0,
-              presentDays: 0,
-              absentDays: 0,
-              halfDays: 0,
-              totalHoursWorked: 0
-            }))
+            .then(response => response.data.data)
+            .catch(err => {
+              console.error(`Failed to fetch report for ${employee.name}:`, err);
+              return {
+                employee: {
+                  _id: employee._id || employee.id,
+                  name: employee.name
+                },
+                details: [],
+                totalDays: 0,
+                presentDays: 0,
+                absentDays: 0,
+                halfDays: 0,
+                lateDays: 0,
+                totalHoursWorked: 0,
+                totalLateMinutes: 0
+              };
+            })
         );
 
         const reports = await Promise.all(reportPromises);
+        console.log('Department reports:', reports);
         setReportData(reports);
         calculateSummary(reports);
+      } else if (reportParams.employee_id === 'all' && reportParams.department === 'all') {
+        // Generate report for all employees
+        console.log('Generating report for all employees');
+        if (employees.length === 0) {
+          toast({
+            title: 'Warning',
+            description: 'No employees found',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const reportPromises = employees.map(employee =>
+          attendanceAPI.getReport(
+            employee._id || employee.id,
+            reportParams.year,
+            reportParams.month
+          )
+            .then(response => {
+              console.log(`Report for ${employee.name}:`, response.data.data);
+              return response.data.data;
+            })
+            .catch(err => {
+              console.error(`Failed to fetch report for ${employee.name}:`, err);
+              return {
+                employee: {
+                  _id: employee._id || employee.id,
+                  name: employee.name
+                },
+                details: [],
+                totalDays: 0,
+                presentDays: 0,
+                absentDays: 0,
+                halfDays: 0,
+                lateDays: 0,
+                totalHoursWorked: 0,
+                totalLateMinutes: 0
+              };
+            })
+        );
+
+        const reports = await Promise.all(reportPromises);
+        console.log('All employee reports:', reports);
+        setReportData(reports);
+        calculateSummary(reports);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Please select valid filter options',
+          variant: 'destructive',
+        });
       }
     } catch (err) {
-      setError('Failed to generate report');
+      console.error('Report generation error:', err);
+      setError(err.message || 'Failed to generate report');
       toast({
         title: 'Error',
-        description: 'Failed to generate report',
+        description: err.message || 'Failed to generate report',
         variant: 'destructive',
       });
+      setReportData([]); // Clear data on error
     } finally {
       setLoading(false);
     }
@@ -130,12 +184,11 @@ export const Reports = () => {
     let totalWorkingHours = 0;
 
     data.forEach(report => {
-      if (report.summary) {
-        totalDays += report.summary.total_days || 0;
-        totalPresentDays += report.summary.present_days || 0;
-        totalAbsentDays += report.summary.absent_days || 0;
-        totalWorkingHours += parseFloat(report.summary.avg_working_hours || 0);
-      }
+      // Backend returns fields directly, not in a 'summary' object
+      totalDays += report.totalDays || 0;
+      totalPresentDays += report.presentDays || 0;
+      totalAbsentDays += report.absentDays || 0;
+      totalWorkingHours += report.totalHoursWorked || 0;
     });
 
     const attendanceRate = totalDays > 0 ? (totalPresentDays / totalDays * 100) : 0;
@@ -171,9 +224,9 @@ export const Reports = () => {
   };
 
   const getStatusBadge = (record) => {
-    if (record.check_in && record.check_out) {
+    if (record.checkInTime && record.checkOutTime) {
       return <Badge className="bg-green-100 text-green-800">Present</Badge>;
-    } else if (record.check_in && !record.check_out) {
+    } else if (record.checkInTime && !record.checkOutTime) {
       return <Badge className="bg-yellow-100 text-yellow-800">Partial</Badge>;
     } else {
       return <Badge variant="destructive">Absent</Badge>;
@@ -204,16 +257,18 @@ export const Reports = () => {
     csvContent.push(['Employee', 'Date', 'Check In', 'Check Out', 'Working Hours', 'Status']);
 
     reportData.forEach(report => {
-      const employeeName = report.employee_name || getEmployeeName(report.employee_id);
-      if (report.records && report.records.length > 0) {
-        report.records.forEach(record => {
+      const employeeName = report.employee?.name || report.employee_name || 'Unknown';
+      const attendanceRecords = report.details || [];
+
+      if (attendanceRecords.length > 0) {
+        attendanceRecords.forEach(record => {
           csvContent.push([
             employeeName,
             new Date(record.date).toLocaleDateString(),
-            formatTime(record.check_in),
-            formatTime(record.check_out),
-            calculateWorkingHours(record.check_in, record.check_out),
-            record.check_in && record.check_out ? 'Present' : record.check_in ? 'Partial' : 'Absent'
+            formatTime(record.checkInTime),
+            formatTime(record.checkOutTime),
+            calculateWorkingHours(record.checkInTime, record.checkOutTime),
+            record.checkInTime && record.checkOutTime ? 'Present' : record.checkInTime ? 'Partial' : 'Absent'
           ]);
         });
       }
@@ -263,7 +318,7 @@ export const Reports = () => {
                 onValueChange={(value) => setReportParams({
                   ...reportParams,
                   employee_id: value,
-                  department: value ? '' : reportParams.department
+                  department: value !== 'all' ? 'all' : reportParams.department
                 })}
               >
                 <SelectTrigger>
@@ -287,7 +342,7 @@ export const Reports = () => {
                 onValueChange={(value) => setReportParams({
                   ...reportParams,
                   department: value,
-                  employee_id: value ? '' : reportParams.employee_id
+                  employee_id: value !== 'all' ? 'all' : reportParams.employee_id
                 })}
               >
                 <SelectTrigger>
@@ -357,6 +412,21 @@ export const Reports = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Show message when no report generated */}
+      {reportData.length === 0 && !loading && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <BarChart3 className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500 text-lg">No report generated yet</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Select filters and click "Generate Report" to see attendance data
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {reportData.length > 0 && (
         <>
@@ -439,11 +509,15 @@ export const Reports = () => {
                   </TableHeader>
                   <TableBody>
                     {reportData.map((report) => {
-                      const employeeName = report.employee_name || getEmployeeName(report.employee_id);
+                      const employeeName = report.employee?.name || report.employee_name || 'Unknown';
+                      const employeeId = report.employee?._id || report.employee_id;
 
-                      if (!report.records || report.records.length === 0) {
+                      // Backend returns 'details' array, not 'records'
+                      const attendanceRecords = report.details || [];
+
+                      if (attendanceRecords.length === 0) {
                         return (
-                          <TableRow key={`${report.employee_id}-no-records`}>
+                          <TableRow key={`${employeeId}-no-records`}>
                             <TableCell className="font-medium">{employeeName}</TableCell>
                             <TableCell colSpan={5} className="text-center text-gray-500">
                               No attendance records found
@@ -452,8 +526,8 @@ export const Reports = () => {
                         );
                       }
 
-                      return report.records.map((record, index) => (
-                        <TableRow key={`${report.employee_id}-${record.date}-${index}`}>
+                      return attendanceRecords.map((record, index) => (
+                        <TableRow key={`${employeeId}-${record.date}-${index}`}>
                           <TableCell className="font-medium">{employeeName}</TableCell>
                           <TableCell>
                             {new Date(record.date).toLocaleDateString('en-US', {
@@ -462,10 +536,10 @@ export const Reports = () => {
                               day: 'numeric'
                             })}
                           </TableCell>
-                          <TableCell>{formatTime(record.check_in)}</TableCell>
-                          <TableCell>{formatTime(record.check_out)}</TableCell>
+                          <TableCell>{formatTime(record.checkInTime)}</TableCell>
+                          <TableCell>{formatTime(record.checkOutTime)}</TableCell>
                           <TableCell>
-                            {calculateWorkingHours(record.check_in, record.check_out)}
+                            {calculateWorkingHours(record.checkInTime, record.checkOutTime)}
                           </TableCell>
                           <TableCell>{getStatusBadge(record)}</TableCell>
                         </TableRow>

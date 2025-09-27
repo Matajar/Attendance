@@ -1,4 +1,5 @@
 const Employee = require("../models/Employee");
+const moment = require('moment-timezone');
 
 async function createEmployee(req, res) {
   const { name, email, phone, department, designation, salary, joinDate } =
@@ -67,7 +68,7 @@ async function createEmployee(req, res) {
       department,
       designation,
       salary,
-      joinDate: joinDate || new Date(),
+      joinDate: joinDate ? moment.tz(joinDate, 'Asia/Dubai').toDate() : moment.tz('Asia/Dubai').toDate(),
     });
 
     await employeeForm.save();

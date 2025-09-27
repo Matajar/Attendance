@@ -17,6 +17,8 @@ export const MarkAttendance = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [checkInTime, setCheckInTime] = useState('');
+  const [checkOutTime, setCheckOutTime] = useState('');
 
   useEffect(() => {
     fetchEmployees();
@@ -30,8 +32,24 @@ export const MarkAttendance = () => {
   useEffect(() => {
     if (selectedEmployee) {
       fetchTodayAttendance();
+      // Set default time to current time when employee is selected
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${hours}:${minutes}`;
+
+      // Only set check-in time if not already checked in
+      if (!todayAttendance?.checkInTime && !checkInTime) {
+        setCheckInTime(currentTimeStr);
+      }
+      // Only set check-out time if already checked in
+      if (todayAttendance?.checkInTime && !todayAttendance?.checkOutTime && !checkOutTime) {
+        setCheckOutTime(currentTimeStr);
+      }
     } else {
       setTodayAttendance(null);
+      setCheckInTime('');
+      setCheckOutTime('');
     }
   }, [selectedEmployee]);
 
@@ -69,6 +87,7 @@ export const MarkAttendance = () => {
     }
   };
 
+
   const handleMarkAttendance = async (type) => {
     if (!selectedEmployee) {
       toast({
@@ -79,17 +98,29 @@ export const MarkAttendance = () => {
       return;
     }
 
+    // Check if time is selected
+    const selectedTime = type === 'check_in' ? checkInTime : checkOutTime;
+    if (!selectedTime) {
+      toast({
+        title: 'Error',
+        description: `Please select a ${type === 'check_in' ? 'check-in' : 'check-out'} time`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setLoading(true);
-      const currentTime = new Date();
-      const timeString = currentTime.toTimeString().slice(0, 8); // HH:mm:ss format
+      // Combine today's date with selected time to create ISO timestamp
+      const today = new Date().toISOString().split('T')[0];
+      const isoString = new Date(`${today}T${selectedTime}:00`).toISOString();
 
       // Use correct field names for backend
       const data = {
         employeeId: selectedEmployee, // Backend expects employeeId, not employee_id
-        date: new Date().toISOString().split('T')[0],
+        date: today,
         status: type === 'check_in' ? 'Present' : 'Present', // Always mark as present when checking in/out
-        [type === 'check_in' ? 'checkInTime' : 'checkOutTime']: timeString
+        [type === 'check_in' ? 'checkInTime' : 'checkOutTime']: isoString
       };
 
       const response = await attendanceAPI.mark(data);
@@ -99,8 +130,13 @@ export const MarkAttendance = () => {
         description: response.data.message || `${type === 'check_in' ? 'Check-in' : 'Check-out'} recorded successfully`,
       });
 
-      // Refresh today's attendance
+      // Refresh today's attendance and clear the time input
       await fetchTodayAttendance();
+      if (type === 'check_in') {
+        setCheckInTime('');
+      } else {
+        setCheckOutTime('');
+      }
     } catch (err) {
       toast({
         title: 'Error',
@@ -129,8 +165,8 @@ export const MarkAttendance = () => {
 
   const getAttendanceStatus = () => {
     if (!todayAttendance) return 'Not marked';
-    if (todayAttendance.checkInTime && todayAttendance.checkOutTime) return 'Completed';
-    if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) return 'Checked in';
+    if (todayAttendance?.checkInTime && todayAttendance?.checkOutTime) return 'Completed';
+    if (todayAttendance?.checkInTime && !todayAttendance?.checkOutTime) return 'Checked in';
     return 'Not marked';
   };
 
@@ -281,7 +317,7 @@ export const MarkAttendance = () => {
                           <div>
                             <p className="text-sm font-medium text-blue-600">Check In Time</p>
                             <p className="text-2xl font-bold text-blue-800">
-                              {todayAttendance?.check_in ? formatTime(todayAttendance.check_in) : 'Not marked'}
+                              {todayAttendance?.checkInTime ? formatTime(todayAttendance.checkInTime) : 'Not marked'}
                             </p>
                           </div>
                           <LogIn className="h-8 w-8 text-blue-500" />
@@ -295,7 +331,7 @@ export const MarkAttendance = () => {
                           <div>
                             <p className="text-sm font-medium text-green-600">Check Out Time</p>
                             <p className="text-2xl font-bold text-green-800">
-                              {todayAttendance?.check_out ? formatTime(todayAttendance.check_out) : 'Not marked'}
+                              {todayAttendance?.checkOutTime ? formatTime(todayAttendance.checkOutTime) : 'Not marked'}
                             </p>
                           </div>
                           <LogOut className="h-8 w-8 text-green-500" />
@@ -304,47 +340,110 @@ export const MarkAttendance = () => {
                     </Card>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button
-                      onClick={() => handleMarkAttendance('check_in')}
-                      disabled={!canCheckIn || loading}
-                      className="flex-1 h-16 text-lg"
-                      size="lg"
-                    >
-                      <LogIn className="h-6 w-6 mr-2" />
-                      {loading ? 'Processing...' : 'Check In'}
-                    </Button>
+                  {/* Time Input and Action Buttons */}
+                  <div className="space-y-4">
+                    {/* Time Input Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`${!canCheckIn ? 'opacity-50' : ''}`}>
+                        <Label htmlFor="checkin-time" className="flex items-center justify-between">
+                          <span>Check In Time</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const now = new Date();
+                              const hours = String(now.getHours()).padStart(2, '0');
+                              const minutes = String(now.getMinutes()).padStart(2, '0');
+                              setCheckInTime(`${hours}:${minutes}`);
+                            }}
+                            disabled={!canCheckIn}
+                            className="text-xs"
+                          >
+                            Use Current Time
+                          </Button>
+                        </Label>
+                        <Input
+                          id="checkin-time"
+                          type="time"
+                          value={checkInTime}
+                          onChange={(e) => setCheckInTime(e.target.value)}
+                          disabled={!canCheckIn}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className={`${!canCheckOut ? 'opacity-50' : ''}`}>
+                        <Label htmlFor="checkout-time" className="flex items-center justify-between">
+                          <span>Check Out Time</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const now = new Date();
+                              const hours = String(now.getHours()).padStart(2, '0');
+                              const minutes = String(now.getMinutes()).padStart(2, '0');
+                              setCheckOutTime(`${hours}:${minutes}`);
+                            }}
+                            disabled={!canCheckOut}
+                            className="text-xs"
+                          >
+                            Use Current Time
+                          </Button>
+                        </Label>
+                        <Input
+                          id="checkout-time"
+                          type="time"
+                          value={checkOutTime}
+                          onChange={(e) => setCheckOutTime(e.target.value)}
+                          disabled={!canCheckOut}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
 
-                    <Button
-                      onClick={() => handleMarkAttendance('check_out')}
-                      disabled={!canCheckOut || loading}
-                      variant="outline"
-                      className="flex-1 h-16 text-lg border-green-300 text-green-700 hover:bg-green-50"
-                      size="lg"
-                    >
-                      <LogOut className="h-6 w-6 mr-2" />
-                      {loading ? 'Processing...' : 'Check Out'}
-                    </Button>
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <Button
+                        onClick={() => handleMarkAttendance('check_in')}
+                        disabled={!canCheckIn || loading || !checkInTime}
+                        className="flex-1 h-16 text-lg"
+                        size="lg"
+                      >
+                        <LogIn className="h-6 w-6 mr-2" />
+                        {loading ? 'Processing...' : 'Check In'}
+                      </Button>
+
+                      <Button
+                        onClick={() => handleMarkAttendance('check_out')}
+                        disabled={!canCheckOut || loading || !checkOutTime}
+                        variant="outline"
+                        className="flex-1 h-16 text-lg border-green-300 text-green-700 hover:bg-green-50"
+                        size="lg"
+                      >
+                        <LogOut className="h-6 w-6 mr-2" />
+                        {loading ? 'Processing...' : 'Check Out'}
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Helper Text */}
                   <div className="text-center text-sm text-gray-600 space-y-1">
-                    {!todayAttendance?.check_in && (
-                      <p>Click "Check In" to record arrival time</p>
+                    {!todayAttendance?.checkInTime && (
+                      <p>Select a time and click "Check In" to record arrival</p>
                     )}
-                    {todayAttendance?.check_in && !todayAttendance?.check_out && (
-                      <p>Click "Check Out" to record departure time</p>
+                    {todayAttendance?.checkInTime && !todayAttendance?.checkOutTime && (
+                      <p>Select a time and click "Check Out" to record departure</p>
                     )}
-                    {todayAttendance?.check_in && todayAttendance?.check_out && (
+                    {todayAttendance?.checkInTime && todayAttendance?.checkOutTime && (
                       <div className="bg-green-50 p-3 rounded-lg">
                         <p className="text-green-700 font-medium">
                           Attendance completed for today!
                         </p>
                         <p className="text-green-600">
                           Working time: {(() => {
-                            const checkIn = new Date(`2000-01-01T${todayAttendance.check_in}`);
-                            const checkOut = new Date(`2000-01-01T${todayAttendance.check_out}`);
+                            const checkIn = new Date(`2000-01-01T${todayAttendance.checkInTime}`);
+                            const checkOut = new Date(`2000-01-01T${todayAttendance.checkOutTime}`);
                             const diffMs = checkOut - checkIn;
                             const diffHours = diffMs / (1000 * 60 * 60);
                             return `${diffHours.toFixed(1)} hours`;

@@ -1,14 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { attendanceAPI, employeeAPI, departmentAPI } from '@/services/api';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
-import { CalendarDays, Search, Filter, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { attendanceAPI, employeeAPI, departmentAPI } from "@/services/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import {
+  CalendarDays,
+  Search,
+  Filter,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 
 export const Attendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -17,11 +38,12 @@ export const Attendance = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
-    date: new Date().toISOString().split('T')[0],
-    employee_id: 'all',
-    department: 'all',
-    status: 'all'
+    date: new Date().toISOString().split("T")[0],
+    employee_id: "all",
+    department: "all",
+    status: "all",
   });
+  console.log(attendanceRecords);
 
   useEffect(() => {
     fetchData();
@@ -38,7 +60,7 @@ export const Attendance = () => {
       setLoading(true);
       const [employeesRes, departmentsRes] = await Promise.all([
         employeeAPI.getAll(),
-        departmentAPI.getAll()
+        departmentAPI.getAll(),
       ]);
       setEmployees(employeesRes.data.data || []);
       setDepartments(departmentsRes.data.data || []);
@@ -47,11 +69,11 @@ export const Attendance = () => {
       await fetchAttendanceByDate();
       setError(null);
     } catch (err) {
-      setError(err.message || 'Failed to fetch data');
+      setError(err.message || "Failed to fetch data");
       toast({
-        title: 'Error',
-        description: err.message || 'Failed to fetch attendance data',
-        variant: 'destructive',
+        title: "Error",
+        description: err.message || "Failed to fetch attendance data",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -61,52 +83,57 @@ export const Attendance = () => {
   const fetchAttendanceByDate = async () => {
     try {
       const response = await attendanceAPI.getByDate(filters.date);
+      console.log('Attendance data received:', response.data.data); // Debug log
+      console.log('Sample record:', response.data.data[0]); // Debug first record structure
       setAttendanceRecords(response.data.data || []);
     } catch (err) {
       toast({
-        title: 'Error',
-        description: err.message || 'Failed to fetch attendance records',
-        variant: 'destructive',
+        title: "Error",
+        description: err.message || "Failed to fetch attendance records",
+        variant: "destructive",
       });
     }
   };
 
   const getEmployeeName = (employeeId) => {
-    const employee = employees.find(e => (e._id || e.id) === employeeId);
-    return employee ? employee.name : 'Unknown Employee';
+    const employee = employees.find((e) => (e._id || e.id) === employeeId);
+    return employee ? employee.name : "Unknown Employee";
   };
 
   const getDepartmentName = (employeeId) => {
-    const employee = employees.find(e => (e._id || e.id) === employeeId);
-    if (!employee) return 'Unknown Department';
-    const deptId = employee.department?._id || employee.department || employee.department;
-    const department = departments.find(d => (d._id || d.id) === deptId);
-    return department ? department.name : 'Unknown Department';
+    const employee = employees.find((e) => (e._id || e.id) === employeeId);
+    if (!employee) return "Unknown Department";
+    const deptId =
+      employee.department?._id || employee.department || employee.department;
+    const department = departments.find((d) => (d._id || d.id) === deptId);
+    return department ? department.name : "Unknown Department";
   };
 
   const formatTime = (timeString) => {
-    if (!timeString) return '-';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+    if (!timeString) return "-";
+    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
     });
   };
 
   const getStatusBadge = (record) => {
-    if (record.check_in && record.check_out) {
+    if (record.checkInTime && record.checkOutTime) {
       return <Badge className="bg-green-100 text-green-800">Present</Badge>;
-    } else if (record.check_in && !record.check_out) {
-      return <Badge className="bg-yellow-100 text-yellow-800">Checked In</Badge>;
+    } else if (record.checkInTime && !record.checkOutTime) {
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800">Checked In</Badge>
+      );
     } else {
       return <Badge variant="destructive">Absent</Badge>;
     }
   };
 
   const getStatusIcon = (record) => {
-    if (record.check_in && record.check_out) {
+    if (record.checkInTime && record.checkOutTime) {
       return <CheckCircle className="h-4 w-4 text-green-500" />;
-    } else if (record.check_in && !record.check_out) {
+    } else if (record.checkInTime && !record.checkOutTime) {
       return <AlertCircle className="h-4 w-4 text-yellow-500" />;
     } else {
       return <XCircle className="h-4 w-4 text-red-500" />;
@@ -114,7 +141,7 @@ export const Attendance = () => {
   };
 
   const calculateWorkingHours = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return '-';
+    if (!checkIn || !checkOut) return "-";
 
     const checkInTime = new Date(`2000-01-01T${checkIn}`);
     const checkOutTime = new Date(`2000-01-01T${checkOut}`);
@@ -123,35 +150,67 @@ export const Attendance = () => {
 
     return `${diffHours.toFixed(1)}h`;
   };
-console.log(attendanceRecords);
 
-  const filteredRecords = attendanceRecords.filter(record => {
-    if (filters.employee_id && filters.employee_id !== 'all' && (record.employee_id || record.employee?._id || '').toString() !== filters.employee_id) {
+  const filteredRecords = attendanceRecords.filter((record) => {
+    // Employee filter
+    if (
+      filters.employee_id &&
+      filters.employee_id !== "all" &&
+      (record.employee_id || record.employee?._id || "").toString() !==
+        filters.employee_id
+    ) {
       return false;
     }
-    if (filters.department && filters.department !== 'all') {
-      const employee = employees.find(e => e.id === record.employee_id);
-      if (!employee || (employee.department || employee.department?._id || '').toString() !== filters.department) {
+
+    // Department filter
+    if (filters.department && filters.department !== "all") {
+      // The record.employee is already populated with department info
+      const recordDepartmentId = record.employee?.department?._id ||
+                                 record.employee?.department ||
+                                 "";
+
+      // Debug log
+      if (attendanceRecords.indexOf(record) === 0) {
+        console.log('Department filter debug:', {
+          filterDepartment: filters.department,
+          recordDepartmentId: recordDepartmentId.toString(),
+          employeeData: record.employee,
+          match: recordDepartmentId.toString() === filters.department
+        });
+      }
+
+      if (recordDepartmentId.toString() !== filters.department) {
         return false;
       }
     }
-    if (filters.status && filters.status !== 'all') {
-      const hasCheckIn = !!record.check_in;
-      const hasCheckOut = !!record.check_out;
-      if (filters.status === 'present' && (!hasCheckIn || !hasCheckOut)) return false;
-      if (filters.status === 'checked_in' && (!hasCheckIn || hasCheckOut)) return false;
-      if (filters.status === 'absent' && hasCheckIn) return false;
+    if (filters.status && filters.status !== "all") {
+      const hasCheckIn = !!record.checkInTime;
+      const hasCheckOut = !!record.checkOutTime;
+      if (filters.status === "present" && (!hasCheckIn || !hasCheckOut))
+        return false;
+      if (filters.status === "checked_in" && (!hasCheckIn || hasCheckOut))
+        return false;
+      if (filters.status === "absent" && hasCheckIn) return false;
     }
     return true;
   });
 
   const getAttendanceSummary = () => {
     const total = filteredRecords.length;
-    const present = filteredRecords.filter(r => r.check_in && r.check_out).length;
-    const checkedIn = filteredRecords.filter(r => r.check_in && !r.check_out).length;
+    const present = filteredRecords.filter(
+      (r) => r.checkInTime && r.checkOutTime
+    ).length;
+    const checkedIn = filteredRecords.filter(
+      (r) => r.checkInTime && !r.checkOutTime
+    ).length;
     const absent = total - present - checkedIn;
+    const late = filteredRecords.filter(
+      (r) => r.isLate === true && r.checkInTime
+    ).length;
 
-    return { total, present, checkedIn, absent };
+    console.log('Late records:', filteredRecords.filter(r => r.isLate === true)); // Debug log
+
+    return { total, present, checkedIn, absent, late };
   };
 
   const summary = getAttendanceSummary();
@@ -194,12 +253,14 @@ console.log(attendanceRecords);
             <CalendarDays className="h-8 w-8" />
             Attendance Records
           </h1>
-          <p className="text-gray-600 mt-1">View and monitor employee attendance</p>
+          <p className="text-gray-600 mt-1">
+            View and monitor employee attendance
+          </p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -216,7 +277,9 @@ console.log(attendanceRecords);
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Present</p>
-                <p className="text-2xl font-bold text-green-600">{summary.present}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {summary.present}
+                </p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
@@ -227,7 +290,9 @@ console.log(attendanceRecords);
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Checked In</p>
-                <p className="text-2xl font-bold text-yellow-600">{summary.checkedIn}</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {summary.checkedIn}
+                </p>
               </div>
               <AlertCircle className="h-8 w-8 text-yellow-500" />
             </div>
@@ -238,9 +303,24 @@ console.log(attendanceRecords);
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Absent</p>
-                <p className="text-2xl font-bold text-red-600">{summary.absent}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {summary.absent}
+                </p>
               </div>
               <XCircle className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Late Arrivals</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {summary.late}
+                </p>
+              </div>
+              <Clock className="h-8 w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
@@ -262,14 +342,18 @@ console.log(attendanceRecords);
                 id="date"
                 type="date"
                 value={filters.date}
-                onChange={(e) => setFilters({ ...filters, date: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, date: e.target.value })
+                }
               />
             </div>
             <div>
               <Label htmlFor="employee">Employee</Label>
               <Select
                 value={filters.employee_id}
-                onValueChange={(value) => setFilters({ ...filters, employee_id: value })}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, employee_id: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All employees" />
@@ -277,7 +361,10 @@ console.log(attendanceRecords);
                 <SelectContent>
                   <SelectItem value="all">All employees</SelectItem>
                   {employees.map((employee) => (
-                    <SelectItem key={employee._id || employee.id} value={(employee._id || employee.id || '').toString()}>
+                    <SelectItem
+                      key={employee._id || employee.id}
+                      value={(employee._id || employee.id || "").toString()}
+                    >
                       {employee.name}
                     </SelectItem>
                   ))}
@@ -288,7 +375,9 @@ console.log(attendanceRecords);
               <Label htmlFor="department">Department</Label>
               <Select
                 value={filters.department}
-                onValueChange={(value) => setFilters({ ...filters, department: value })}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, department: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All departments" />
@@ -296,7 +385,10 @@ console.log(attendanceRecords);
                 <SelectContent>
                   <SelectItem value="all">All departments</SelectItem>
                   {departments.map((department) => (
-                    <SelectItem key={department._id || department.id} value={(department._id || department.id || '').toString()}>
+                    <SelectItem
+                      key={department._id || department.id}
+                      value={(department._id || department.id || "").toString()}
+                    >
                       {department.name}
                     </SelectItem>
                   ))}
@@ -307,7 +399,9 @@ console.log(attendanceRecords);
               <Label htmlFor="status">Status</Label>
               <Select
                 value={filters.status}
-                onValueChange={(value) => setFilters({ ...filters, status: value })}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, status: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
@@ -327,16 +421,16 @@ console.log(attendanceRecords);
       {/* Attendance Table */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            Attendance Records ({filteredRecords.length})
-          </CardTitle>
+          <CardTitle>Attendance Records ({filteredRecords.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {filteredRecords.length === 0 ? (
             <div className="text-center py-8">
               <CalendarDays className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">No attendance records found</p>
-              <p className="text-sm text-gray-400">Try adjusting your filters</p>
+              <p className="text-sm text-gray-400">
+                Try adjusting your filters
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -348,31 +442,74 @@ console.log(attendanceRecords);
                     <TableHead>Date</TableHead>
                     <TableHead>Check In</TableHead>
                     <TableHead>Check Out</TableHead>
+                    <TableHead>Late Status</TableHead>
+                    <TableHead>Late Minutes</TableHead>
                     <TableHead>Working Hours</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredRecords.map((record) => (
-                    <TableRow key={`${record.employee?._id || record.employee_id || record.employee}-${record.date}`}>
+                    <TableRow
+                      key={`${
+                        record.employee?._id ||
+                        record.employee_id ||
+                        record.employee
+                      }-${record.date}`}
+                    >
                       <TableCell className="font-medium">
-                        {getEmployeeName(record.employee?._id || record.employee_id || record.employee)}
+                        {getEmployeeName(
+                          record.employee?._id ||
+                            record.employee_id ||
+                            record.employee
+                        )}
                       </TableCell>
-                      <TableCell>{getDepartmentName(record.employee?._id || record.employee_id || record.employee)}</TableCell>
                       <TableCell>
-                        {new Date(record.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
+                        {getDepartmentName(
+                          record.employee?._id ||
+                            record.employee_id ||
+                            record.employee
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(record.date).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
                         })}
                       </TableCell>
                       <TableCell className="flex items-center gap-2">
                         {getStatusIcon(record)}
-                        {formatTime(record.check_in)}
+                        {formatTime(record.checkInTime)}
                       </TableCell>
-                      <TableCell>{formatTime(record.check_out)}</TableCell>
+                      <TableCell>{formatTime(record.checkOutTime)}</TableCell>
                       <TableCell>
-                        {calculateWorkingHours(record.check_in, record.check_out)}
+                        {record.isLate ? (
+                          <Badge variant="outline" className="border-orange-300 text-orange-700">
+                            Late
+                          </Badge>
+                        ) : record.checkInTime ? (
+                          <Badge variant="outline" className="border-green-300 text-green-700">
+                            On Time
+                          </Badge>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {record.isLate && record.lateMinutes > 0 ? (
+                          <span className="text-orange-600 font-medium">
+                            {record.lateMinutes} min
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {calculateWorkingHours(
+                          record.checkInTime,
+                          record.checkOutTime
+                        )}
                       </TableCell>
                       <TableCell>{getStatusBadge(record)}</TableCell>
                     </TableRow>
@@ -386,4 +523,3 @@ console.log(attendanceRecords);
     </div>
   );
 };
-

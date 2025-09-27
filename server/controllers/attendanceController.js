@@ -1,6 +1,9 @@
 const Attendance = require('../models/Attendance');
 const Employee = require('../models/Employee');
-const moment = require('moment');
+const moment = require('moment-timezone');
+
+// Set default timezone to Dubai
+moment.tz.setDefault('Asia/Dubai');
 
 async function markAttendance(req, res) {
   const { employeeId, date, checkInTime, checkOutTime, status, remarks } = req.body;
@@ -43,13 +46,28 @@ async function markAttendance(req, res) {
 
     const existingAttendance = await Attendance.findOne({
       employee: employeeId,
-      date: moment(date).startOf('day').toDate()
+      date: moment.tz(date, 'Asia/Dubai').startOf('day').toDate()
     });
+
+    // Convert ISO timestamps to Dubai time HH:mm:ss format
+    const formatToDubaiTime = (isoString) => {
+      if (!isoString) return null;
+      // If already in HH:mm:ss format, return as is
+      if (/^\d{2}:\d{2}:\d{2}$/.test(isoString)) return isoString;
+      // Convert ISO to Dubai timezone HH:mm:ss
+      return moment.tz(isoString, 'Asia/Dubai').format('HH:mm:ss');
+    };
 
     let attendanceForm;
     if (existingAttendance) {
-      existingAttendance.checkInTime = checkInTime;
-      existingAttendance.checkOutTime = checkOutTime;
+      // Only update checkInTime if it's provided in the request
+      if (checkInTime !== undefined) {
+        existingAttendance.checkInTime = formatToDubaiTime(checkInTime);
+      }
+      // Only update checkOutTime if it's provided in the request
+      if (checkOutTime !== undefined) {
+        existingAttendance.checkOutTime = formatToDubaiTime(checkOutTime);
+      }
       existingAttendance.status = status;
       existingAttendance.remarks = remarks || "";
       existingAttendance.calculateStatus();
@@ -57,9 +75,9 @@ async function markAttendance(req, res) {
     } else {
       attendanceForm = new Attendance({
         employee: employeeId,
-        date: moment(date).startOf('day').toDate(),
-        checkInTime,
-        checkOutTime,
+        date: moment.tz(date, 'Asia/Dubai').startOf('day').toDate(),
+        checkInTime: formatToDubaiTime(checkInTime),
+        checkOutTime: formatToDubaiTime(checkOutTime),
         status,
         remarks: remarks || ""
       });
@@ -90,8 +108,8 @@ async function getAttendanceByDate(req, res) {
   }
 
   try {
-    const startDate = moment(date).startOf('day').toDate();
-    const endDate = moment(date).endOf('day').toDate();
+    const startDate = moment.tz(date, 'Asia/Dubai').startOf('day').toDate();
+    const endDate = moment.tz(date, 'Asia/Dubai').endOf('day').toDate();
 
     const attendance = await Attendance.find({
       date: { $gte: startDate, $lte: endDate }
@@ -99,6 +117,14 @@ async function getAttendanceByDate(req, res) {
       path: 'employee',
       populate: { path: 'department designation' }
     });
+
+    // Recalculate status for each record to ensure isLate is properly set
+    for (const record of attendance) {
+      if (record.checkInTime) {
+        record.calculateStatus();
+        // We don't save here, just update the in-memory object for the response
+      }
+    }
 
     res.status(200).json({
       message: "Attendance retrieved successfully",
@@ -134,8 +160,8 @@ async function getEmployeeAttendance(req, res) {
 
     if (startDate && endDate) {
       filter.date = {
-        $gte: moment(startDate).startOf('day').toDate(),
-        $lte: moment(endDate).endOf('day').toDate()
+        $gte: moment.tz(startDate, 'Asia/Dubai').startOf('day').toDate(),
+        $lte: moment.tz(endDate, 'Asia/Dubai').endOf('day').toDate()
       };
     }
 
@@ -194,8 +220,8 @@ async function getMonthlyReport(req, res) {
         .json({ message: "Employee not found", status: false });
     }
 
-    const startDate = moment(`${year}-${month}`, 'YYYY-MM').startOf('month').toDate();
-    const endDate = moment(`${year}-${month}`, 'YYYY-MM').endOf('month').toDate();
+    const startDate = moment.tz(`${year}-${month}`, 'YYYY-MM', 'Asia/Dubai').startOf('month').toDate();
+    const endDate = moment.tz(`${year}-${month}`, 'YYYY-MM', 'Asia/Dubai').endOf('month').toDate();
 
     const attendance = await Attendance.find({
       employee: employeeId,
@@ -205,7 +231,7 @@ async function getMonthlyReport(req, res) {
     const report = {
       employee: employee,
       month: `${year}-${month}`,
-      totalDays: moment(endDate).date(),
+      totalDays: moment.tz(endDate, 'Asia/Dubai').date(),
       presentDays: attendance.filter(a => a.status === 'Present').length,
       absentDays: attendance.filter(a => a.status === 'Absent').length,
       halfDays: attendance.filter(a => a.status === 'Half Day').length,
@@ -228,8 +254,8 @@ async function getMonthlyReport(req, res) {
 
 async function getDashboardStats(req, res) {
   try {
-    const today = moment().startOf('day').toDate();
-    const weekAgo = moment().subtract(7, 'days').startOf('day').toDate();
+    const today = moment.tz('Asia/Dubai').startOf('day').toDate();
+    const weekAgo = moment.tz('Asia/Dubai').subtract(7, 'days').startOf('day').toDate();
 
     const todayAbsentees = await Attendance.find({
       date: today,
@@ -245,7 +271,7 @@ async function getDashboardStats(req, res) {
 
     const dailyCounts = {};
     for (let i = 0; i < 7; i++) {
-      const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
+      const date = moment.tz('Asia/Dubai').subtract(i, 'days').format('YYYY-MM-DD');
       dailyCounts[date] = {
         absent: 0,
         present: 0,
@@ -254,7 +280,7 @@ async function getDashboardStats(req, res) {
     }
 
     weeklyAttendance.forEach(att => {
-      const date = moment(att.date).format('YYYY-MM-DD');
+      const date = moment.tz(att.date, 'Asia/Dubai').format('YYYY-MM-DD');
       if (dailyCounts[date]) {
         if (att.status === 'Absent') dailyCounts[date].absent++;
         else if (att.status === 'Present') dailyCounts[date].present++;

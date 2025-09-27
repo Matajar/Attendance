@@ -1,7 +1,9 @@
-const Employee = require('../models/Employee');
+const Employee = require("../models/Employee");
 
 async function createEmployee(req, res) {
-  const { name, email, phone, department, designation, salary, joinDate } = req.body;
+  const { name, email, phone, department, designation, salary, joinDate } =
+    req.body;
+  console.log(req.body);
 
   // Validation
   if (!name || name.trim() === "") {
@@ -52,15 +54,16 @@ async function createEmployee(req, res) {
     // Check if employee with same email already exists
     const checkEmployee = await Employee.findOne({ email: email });
     if (checkEmployee) {
-      return res
-        .status(200)
-        .json({ message: "Employee with this email already exists", status: false });
+      return res.status(200).json({
+        message: "Employee with this email already exists",
+        status: false,
+      });
     }
 
     const employeeForm = new Employee({
       name,
       email,
-      phone,
+      phoneNumber: phone,
       department,
       designation,
       salary,
@@ -68,7 +71,7 @@ async function createEmployee(req, res) {
     });
 
     await employeeForm.save();
-    await employeeForm.populate(['department', 'designation']);
+    await employeeForm.populate(["department", "designation"]);
 
     res.status(200).json({
       message: "Employee created successfully",
@@ -90,8 +93,8 @@ async function getAllEmployees(req, res) {
     if (designation) filter.designation = designation;
 
     const employees = await Employee.find(filter)
-      .populate('department')
-      .populate('designation');
+      .populate("department")
+      .populate("designation");
 
     res.status(200).json({
       message: "Employees retrieved successfully",
@@ -115,8 +118,8 @@ async function getEmployeeById(req, res) {
 
   try {
     const employee = await Employee.findById(id)
-      .populate('department')
-      .populate('designation');
+      .populate("department")
+      .populate("designation");
 
     if (!employee) {
       return res
@@ -147,9 +150,10 @@ async function updateEmployee(req, res) {
 
   // Validate if at least one field is provided for update
   if (!name && !email && !phone && !department && !designation && !salary) {
-    return res
-      .status(200)
-      .json({ message: "At least one field is required for update", status: false });
+    return res.status(200).json({
+      message: "At least one field is required for update",
+      status: false,
+    });
   }
 
   // Validate email if provided
@@ -182,17 +186,17 @@ async function updateEmployee(req, res) {
     if (email && email !== existingEmployee.email) {
       const checkEmail = await Employee.findOne({ email: email });
       if (checkEmail) {
-        return res
-          .status(200)
-          .json({ message: "Employee with this email already exists", status: false });
+        return res.status(200).json({
+          message: "Employee with this email already exists",
+          status: false,
+        });
       }
     }
 
-    const employee = await Employee.findByIdAndUpdate(
-      id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate(['department', 'designation']);
+    const employee = await Employee.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    }).populate(["department", "designation"]);
 
     res.status(200).json({
       message: "Employee updated successfully",
@@ -241,5 +245,5 @@ module.exports = {
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
 };

@@ -1,16 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { employeeAPI, departmentAPI, designationAPI } from '@/services/api';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { toast } from '@/hooks/use-toast';
-import { MoreHorizontal, Plus, Pencil, Trash2, User } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { employeeAPI, departmentAPI, designationAPI } from "@/services/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
+import { MoreHorizontal, Plus, Pencil, Trash2, User } from "lucide-react";
 
 export const Employees = () => {
   const [employees, setEmployees] = useState([]);
@@ -21,14 +45,14 @@ export const Employees = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    department: '',
-    designation: '',
-    salary: '',
-    joinDate: '',
-    status: 'active'
+    name: "",
+    email: "",
+    phone: "",
+    department: "",
+    designation: "",
+    salary: "",
+    joinDate: "",
+    status: "active",
   });
 
   useEffect(() => {
@@ -38,21 +62,19 @@ export const Employees = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [employeesRes, departmentsRes, designationsRes] = await Promise.all([
-        employeeAPI.getAll(),
-        departmentAPI.getAll(),
-        designationAPI.getAll()
-      ]);
+      const [employeesRes, departmentsRes, designationsRes] = await Promise.all(
+        [employeeAPI.getAll(), departmentAPI.getAll(), designationAPI.getAll()]
+      );
       setEmployees(employeesRes.data.data || []);
       setDepartments(departmentsRes.data.data || []);
       setDesignations(designationsRes.data.data || []);
       setError(null);
     } catch (err) {
-      setError(err.message || 'Failed to fetch data');
+      setError(err.message || "Failed to fetch data");
       toast({
-        title: 'Error',
-        description: err.message || 'Failed to fetch employees data',
-        variant: 'destructive',
+        title: "Error",
+        description: err.message || "Failed to fetch employees data",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -70,20 +92,23 @@ export const Employees = () => {
         department: formData.department,
         designation: formData.designation,
         salary: formData.salary || 0,
-        joinDate: formData.joinDate || new Date().toISOString()
+        joinDate: formData.joinDate || new Date().toISOString(),
       };
 
       if (editingEmployee) {
-        const response = await employeeAPI.update(editingEmployee._id || editingEmployee.id, payload);
+        const response = await employeeAPI.update(
+          editingEmployee._id || editingEmployee.id,
+          payload
+        );
         toast({
-          title: 'Success',
-          description: response.data.message || 'Employee updated successfully',
+          title: "Success",
+          description: response.data.message || "Employee updated successfully",
         });
       } else {
         const response = await employeeAPI.create(payload);
         toast({
-          title: 'Success',
-          description: response.data.message || 'Employee created successfully',
+          title: "Success",
+          description: response.data.message || "Employee created successfully",
         });
       }
       setIsDialogOpen(false);
@@ -92,9 +117,11 @@ export const Employees = () => {
     } catch (err) {
       // Error message will come from interceptor
       toast({
-        title: 'Error',
-        description: err.message || `Failed to ${editingEmployee ? 'update' : 'create'} employee`,
-        variant: 'destructive',
+        title: "Error",
+        description:
+          err.message ||
+          `Failed to ${editingEmployee ? "update" : "create"} employee`,
+        variant: "destructive",
       });
       // Don't close the dialog on error
     }
@@ -106,27 +133,37 @@ export const Employees = () => {
       name: employee.name,
       email: employee.email,
       phone: employee.phone,
-      department: (employee.department || employee.department?._id || employee.department || '').toString(),
-      designation: (employee.designation || employee.designation?._id || employee.designation || '').toString(),
-      status: employee.status
+      department: (
+        employee.department ||
+        employee.department?._id ||
+        employee.department ||
+        ""
+      ).toString(),
+      designation: (
+        employee.designation ||
+        employee.designation?._id ||
+        employee.designation ||
+        ""
+      ).toString(),
+      status: employee.status,
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
+    if (window.confirm("Are you sure you want to delete this employee?")) {
       try {
         await employeeAPI.delete(id);
         toast({
-          title: 'Success',
-          description: 'Employee deleted successfully',
+          title: "Success",
+          description: "Employee deleted successfully",
         });
         fetchData();
       } catch (err) {
         toast({
-          title: 'Error',
-          description: 'Failed to delete employee',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to delete employee",
+          variant: "destructive",
         });
       }
     }
@@ -134,24 +171,24 @@ export const Employees = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      department: '',
-      designation: '',
-      status: 'active'
+      name: "",
+      email: "",
+      phone: "",
+      department: "",
+      designation: "",
+      status: "active",
     });
     setEditingEmployee(null);
   };
 
   const getDepartmentName = (departmentId) => {
-    const dept = departments.find(d => (d._id || d.id) === departmentId);
-    return dept ? dept.name : 'Unknown';
+    const dept = departments.find((d) => (d._id || d.id) === departmentId);
+    return dept ? dept.name : "Unknown";
   };
 
   const getDesignationName = (designationId) => {
-    const desig = designations.find(d => (d._id || d.id) === designationId);
-    return desig ? desig.name : 'Unknown';
+    const desig = designations.find((d) => (d._id || d.id) === designationId);
+    return desig ? desig.name : "Unknown";
   };
 
   if (loading) {
@@ -192,7 +229,9 @@ export const Employees = () => {
             <User className="h-8 w-8" />
             Employee Management
           </h1>
-          <p className="text-gray-600 mt-1">Manage your organization's employees</p>
+          <p className="text-gray-600 mt-1">
+            Manage your organization's employees
+          </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -204,7 +243,7 @@ export const Employees = () => {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+                {editingEmployee ? "Edit Employee" : "Add New Employee"}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -213,7 +252,9 @@ export const Employees = () => {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -223,7 +264,9 @@ export const Employees = () => {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -232,7 +275,20 @@ export const Employees = () => {
                 <Input
                   id="phone"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Salary</Label>
+                <Input
+                  id="salary"
+                  value={formData.salary}
+                  onChange={(e) =>
+                    setFormData({ ...formData, salary: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -240,14 +296,19 @@ export const Employees = () => {
                 <Label htmlFor="department">Department</Label>
                 <Select
                   value={formData.department}
-                  onValueChange={(value) => setFormData({ ...formData, department: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, department: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((dept) => (
-                      <SelectItem key={dept._id || dept.id} value={(dept._id || dept.id || '').toString()}>
+                      <SelectItem
+                        key={dept._id || dept.id}
+                        value={(dept._id || dept.id || "").toString()}
+                      >
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -258,25 +319,33 @@ export const Employees = () => {
                 <Label htmlFor="designation">Designation</Label>
                 <Select
                   value={formData.designation}
-                  onValueChange={(value) => setFormData({ ...formData, designation: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, designation: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select designation" />
                   </SelectTrigger>
                   <SelectContent>
                     {designations.map((desig) => (
-                      <SelectItem key={desig._id || desig.id} value={(desig._id || desig.id || '').toString()}>
+                      <SelectItem
+                        key={desig._id || desig.id}
+                        value={(desig._id || desig.id || "").toString()}
+                      >
                         {desig.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+        
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, status: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -296,7 +365,7 @@ export const Employees = () => {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {editingEmployee ? 'Update' : 'Create'}
+                  {editingEmployee ? "Update" : "Create"}
                 </Button>
               </div>
             </form>
@@ -313,7 +382,9 @@ export const Employees = () => {
             <div className="text-center py-8">
               <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">No employees found</p>
-              <p className="text-sm text-gray-400">Add your first employee to get started</p>
+              <p className="text-sm text-gray-400">
+                Add your first employee to get started
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -332,14 +403,34 @@ export const Employees = () => {
                 <TableBody>
                   {employees.map((employee) => (
                     <TableRow key={employee._id || employee.id}>
-                      <TableCell className="font-medium">{employee.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {employee.name}
+                      </TableCell>
                       <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.phoneNumber || employee.phone}</TableCell>
-                      <TableCell>{getDepartmentName(employee.department?._id || employee.department || employee.department)}</TableCell>
-                      <TableCell>{getDesignationName(employee.designation?._id || employee.designation || employee.designation)}</TableCell>
+                      <TableCell>
+                        {employee.phoneNumber || employee.phone}
+                      </TableCell>
+                      <TableCell>
+                        {getDepartmentName(
+                          employee.department?._id ||
+                            employee.department ||
+                            employee.department
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {getDesignationName(
+                          employee.designation?._id ||
+                            employee.designation ||
+                            employee.designation
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge
-                          variant={employee.status === 'active' ? 'default' : 'secondary'}
+                          variant={
+                            employee.status === "active"
+                              ? "default"
+                              : "secondary"
+                          }
                         >
                           {employee.status}
                         </Badge>
@@ -352,12 +443,16 @@ export const Employees = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(employee)}>
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(employee)}
+                            >
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDelete(employee._id || employee.id)}
+                              onClick={() =>
+                                handleDelete(employee._id || employee.id)
+                              }
                               className="text-red-600"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -377,4 +472,3 @@ export const Employees = () => {
     </div>
   );
 };
-
